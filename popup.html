@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: sans-serif; width: 240px; padding: 8px; }
+    label { display: block; margin-bottom: 8px; }
+    input, button { width: 100%; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <form id="optionsForm">
+    <label>
+      Keywords
+      <input type="text" id="keywords" required>
+    </label>
+    <label>
+      Location
+      <input type="text" id="location">
+    </label>
+    <label>
+      Interval (min)
+      <input type="number" id="interval" min="5" value="30" required>
+    </label>
+    <button type="submit">Save</button>
+  </form>
+  <script src="options.js"></script>
+</body>
+</html>
