@@ -1,0 +1,36 @@
+{
+    "manifest_version": 3,
+    "name": "LinkedIn Job Alerts",
+    "version": "0.1.0",
+    "description": "Notify me of new LinkedIn jobs posted in the last hour.",
+    "permissions": [
+      "alarms",
+      "notifications",
+      "storage",
+      "identity"
+    ],
+    "host_permissions": [
+      "https://api.linkedin.com/*"
+    ],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "options_page": "options.html",
+    "action": {
+      "default_popup": "options.html",
+      "default_icon": {
+        "16": "icons/icon16.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+      }
+    },
+    "oauth2": {
+      "client_id": "YOUR_LINKEDIN_CLIENT_ID",
+      "scopes": [
+        "r_liteprofile",
+        "r_emailaddress",
+        "w_member_social"
+      ]
+    }
+  }
+  
