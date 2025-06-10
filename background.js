@@ -1,5 +1,6 @@
 // background.js
 // Service worker: polls LinkedIn guest Jobs API every 30 minutes and sends notifications for new jobs via regex parsing
+console.log('🛠️  background.js loaded');
 
 // Constants
 const TIME_PARAM = 'r86400'; // last 24 hour filter
