@@ -1,8 +1,8 @@
 // background.js
-// Service worker: polls LinkedIn guest Jobs API every 30 minutes and sends notifications for new jobs
+// Service worker: polls LinkedIn guest Jobs API every 30 minutes and sends notifications for new jobs via regex parsing
 
 // Constants
-const TIME_PARAM = 'r3600'; // last hour filter
+const TIME_PARAM = 'r86400'; // last 24 hour filter
 const ALARM_NAME = 'jobCheck';
 
 // 1. On install/update, schedule repeating alarm
@@ -13,31 +13,20 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// 2. Parse HTML response into job objects
+// 2. Parse HTML response into job objects using regex
 function parseJobs(html) {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const cards = doc.querySelectorAll('li > div.base-card');
   const jobs = [];
-  cards.forEach(card => {
-    const titleEl = card.querySelector('.base-search-card__title');
-    const companyEl = card.querySelector('.base-search-card__subtitle');
-    const locationEl = card.querySelector('.job-search-card__location');
-    const linkEl = card.querySelector('a.base-card__full-link');
-    const timeEl = card.querySelector('time');
-
-    const url = linkEl?.href;
-    if (!url) return;
+  // This regex looks for <li>…<a class="base-card__full-link" href="URL">…</a> then captures title, company, location
+  const itemRegex = /<li[\s\S]*?<a[^>]+class="[^"]*base-card__full-link[^"]*"[^>]+href="([^"]+)"[\s\S]*?>[\s\S]*?<h3[^>]*class="[^"]*base-search-card__title[^"]*"[^>]*>([^<]+)<\/h3>[\s\S]*?<h4[^>]*class="[^"]*base-search-card__subtitle[^"]*"[^>]*>([^<]+)<\/h4>[\s\S]*?<span[^>]*class="[^"]*job-search-card__location[^"]*"[^>]*>([^<]+)<\/span>/g;
+  let match;
+  while ((match = itemRegex.exec(html)) !== null) {
+    const url = match[1];
+    const title = match[2].trim();
+    const company = match[3].trim();
+    const location = match[4].trim();
     const id = url.split('/').pop().split('?')[0];
-
-    jobs.push({
-      id,
-      title: titleEl?.innerText.trim() || '',
-      company: companyEl?.innerText.trim() || '',
-      location: locationEl?.innerText.trim() || '',
-      url,
-      timestamp: timeEl?.getAttribute('datetime') || ''
-    });
-  });
+    jobs.push({ id, title, company, location, url });
+  }
   return jobs;
 }
 
@@ -45,9 +34,7 @@ function parseJobs(html) {
 chrome.alarms.onAlarm.addListener(async alarm => {
   if (alarm.name !== ALARM_NAME) return;
   try {
-    const storage = await chrome.storage.local.get(['criteria', 'lastSeen']);
-    const criteria = storage.criteria || {};
-    const lastSeen = storage.lastSeen || {};
+    const { criteria = {}, lastSeen = {} } = await chrome.storage.local.get(['criteria', 'lastSeen']);
     if (!criteria.keywords) return;
 
     // Build guest API URL
@@ -58,18 +45,20 @@ chrome.alarms.onAlarm.addListener(async alarm => {
       start: '0'
     });
     const fetchUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?${params}`;
+    console.log('URL', fetchUrl);
 
     const res = await fetch(fetchUrl, { credentials: 'omit' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
     const jobs = parseJobs(html);
-    if (!jobs.length) return;
+    console.log('JOBS FOUND: ',jobs);
+    if (jobs.length === 0) return;
 
     const seenId = lastSeen[criteria.id];
     const newJobs = seenId ? jobs.filter(j => j.id !== seenId) : jobs;
     if (newJobs.length === 0) return;
 
-    // Update state
+    // Update storage
     lastSeen[criteria.id] = jobs[0].id;
     const lastFetched = {};
     jobs.forEach(j => { lastFetched[j.id] = j.url; });
@@ -92,8 +81,7 @@ chrome.alarms.onAlarm.addListener(async alarm => {
 
 // 4. Open job URL on notification click
 chrome.notifications.onClicked.addListener(async notifId => {
-  const data = await chrome.storage.local.get('lastFetched');
-  const lastFetched = data.lastFetched || {};
+  const { lastFetched = {} } = await chrome.storage.local.get('lastFetched');
   const url = lastFetched[notifId];
   if (url) {
     chrome.tabs.create({ url });
