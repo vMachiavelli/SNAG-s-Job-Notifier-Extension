@@ -52,6 +52,19 @@ chrome.alarms.onAlarm.addListener(async alarm => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
     console.log('Raw HTML length:', html.length);
+
+  // === pull out just the application links ===
+  const linkRegex = /<a[^>]+class="[^"]*base-card__full-link[^"]*"[^>]+href="([^"]+)"/g;
+  const links = [];
+  let m;
+  while ((m = linkRegex.exec(html)) !== null) {
+    let url = m[1];
+  // if LinkedIn ever returns a relative path, make it absolute:
+    if (url.startsWith('/')) url = 'https://www.linkedin.com' + url;
+    links.push(url);
+  }
+  console.log('🔗 Application links:', links);
+
     const jobs = parseJobs(html);
     console.log('JOBS FOUND: ', jobs);
     if (jobs.length === 0) return;
