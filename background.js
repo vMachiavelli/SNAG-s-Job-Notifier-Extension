@@ -37,21 +37,23 @@ chrome.alarms.onAlarm.addListener(async alarm => {
     const { criteria = {}, lastSeen = {} } = await chrome.storage.local.get(['criteria', 'lastSeen']);
     if (!criteria.keywords) return;
 
-    // Build guest API URL
-    const params = new URLSearchParams({
-      keywords: criteria.keywords,
-      location: criteria.location,
-      f_TPR: TIME_PARAM,
-      start: '0'
-    });
-    const fetchUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?${params}`;
+    // Build guest API URL with percent-encoding for spaces
+    const kw = encodeURIComponent(criteria.keywords.trim());
+    const loc = encodeURIComponent(criteria.location.trim());
+    const fetchUrl = 
+      `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?` +
+      `keywords=${kw}` +
+      `&location=${loc}` +
+      `&f_TPR=${TIME_PARAM}` +
+      `&start=0`;
     console.log('URL', fetchUrl);
 
     const res = await fetch(fetchUrl, { credentials: 'omit' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
+    console.log('Raw HTML length:', html.length);
     const jobs = parseJobs(html);
-    console.log('JOBS FOUND: ',jobs);
+    console.log('JOBS FOUND: ', jobs);
     if (jobs.length === 0) return;
 
     const seenId = lastSeen[criteria.id];
@@ -71,7 +73,7 @@ chrome.alarms.onAlarm.addListener(async alarm => {
         iconUrl: 'icons/icon128.png',
         title: job.title,
         message: `${job.company} — ${job.location}`,
-        contextMessage: 'Posted within the last hour'
+        contextMessage: 'Posted within the last 24 hours'
       });
     });
   } catch (err) {
